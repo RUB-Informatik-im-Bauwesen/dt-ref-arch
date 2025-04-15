@@ -113,10 +113,62 @@ def check_influx_for_threshold(threshold: float, flux_template: str, influx_host
         conn.close()
 
 
+def build_heat_output_payload(value):
+    return {
+        "idShort": "HeatOutput",
+        "description": [
+            {"language": "en", "text": "Represents the current heating power applied to the oven as a percentage of its maximum capacity."},
+            {"language": "de", "text": "Gibt die aktuell auf den Ofen angewendete Heizleistung in Prozent der maximalen Leistung an."}
+        ],
+        "semanticId": {
+            "type": "ModelReference",
+            "keys": [{"type": "ConceptDescription", "value": "https://example.com/ids/cd/6032_2151_4052_2696"}]
+        },
+        "valueType": "xs:double",
+        "value": str(value),
+        "modelType": "Property"
+    }
+
+def update_aas_heat_output(value):
+    """Updates the HeatOutput property of the AASX server to the given value."""
+    url = "http://localhost:3000/submodels/aHR0cHM6Ly9leGFtcGxlLmNvbS9pZHMvc20vODA3NV85MDUxXzQwNTJfODY3Mg/submodel-elements/HeatOutput"
+    payload = build_heat_output_payload(value)
+    response = requests.put(url, json=payload)
+    return response.status_code in (200, 204)
+
+def build_operating_state_payload(state):
+    return {
+        "idShort": "OperatingState",
+        "description": [
+            {"language": "en", "text": "Current operating state of the oven, indicating whether it is off, heating, holding, cooling, or in error."},
+            {"language": "de", "text": "Aktueller Betriebszustand des Ofens, der angibt, ob er ausgeschaltet ist, heizt, hält, kühlt oder einen Fehler aufweist."}
+        ],
+        "semanticId": {
+            "type": "ModelReference",
+            "keys": [{"type": "ConceptDescription", "value": "https://example.com/ids/cd/0410_1151_4052_6512"}]
+        },
+        "valueType": "xs:string",
+        "value": str(state),
+        "modelType": "Property"
+    }
+
+def update_aas_operating_state(state):
+    """Updates the OperatingState property of the AASX server to the given state string."""
+    url = "http://localhost:3000/submodels/aHR0cHM6Ly9leGFtcGxlLmNvbS9pZHMvc20vODA3NV85MDUxXzQwNTJfODY3Mg/submodel-elements/OperatingState"
+    payload = build_operating_state_payload(state)
+    response = requests.put(url, json=payload)
+    return response.status_code in (200, 204)
+
+
 def scheduled_check():
     threshold = query_temperature_threshold()
     influx_host, flux_query = query_flux_query()
     result = check_influx_for_threshold(threshold, flux_query, influx_host)
+
+    if result:        
+        update_aas_heat_output(50)
+    else:        
+        update_aas_heat_output(100)
 
     status_report.update({
         "threshold": threshold,
@@ -127,6 +179,9 @@ def scheduled_check():
     })
 
     print(f"[{status_report['last_check']}] Threshold={threshold} @ {influx_host} → Exceeded={result}")
+
+    
+
 
 @app.route('/status', methods=['GET'])
 def get_status():

@@ -4,7 +4,7 @@ import http.client
 import requests
 import ssl
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 status_report = {
@@ -18,6 +18,7 @@ status_report = {
 GRAPHDB_BASE_URL = "http://134.147.216.21:7200"
 REPOSITORY_ID = "ymodule" 
 INFLUX_TOKEN = "1JQJJxOJvS99fv780_5VhDk1QuVYX7nYo-AmnVyY_iX7tNmQGqrs-LPQ469QKJoChW6kivrCAj9EhjlIFVJoGA=="
+START_HEAT = datetime.now()
 
 
 def perform_sparql_query(query: str) -> list[dict]:
@@ -166,9 +167,18 @@ def scheduled_check():
     result = check_influx_for_threshold(threshold, flux_query, influx_host)
 
     if result:        
-        update_aas_heat_output(50)
+        update_aas_heat_output(40)              # percentage
     else:        
-        update_aas_heat_output(100)
+        update_aas_heat_output(100)             # percentage
+
+    current_time = datetime.now()
+    end_time = START_HEAT + timedelta(hours=4)
+
+    if START_HEAT <= current_time <= end_time:
+        update_aas_operating_state("heat")      # within heating period
+    else:
+        update_aas_operating_state("cooldown")  # outside heating period
+        update_aas_heat_output(0)               # percentage
 
     status_report.update({
         "threshold": threshold,
@@ -180,9 +190,13 @@ def scheduled_check():
 
     print(f"[{status_report['last_check']}] Threshold={threshold} @ {influx_host} → Exceeded={result}")
 
+def start_heat_treatment():
+    update_aas_heat_output(100)
+    update_aas_operating_state("heat")
+    global START_HEAT
+    START_HEAT = datetime.now()
     
-
-
+    
 @app.route('/status', methods=['GET'])
 def get_status():
     return jsonify(status_report)
@@ -194,7 +208,9 @@ scheduler.add_job(scheduled_check, 'interval', minutes=2)
 scheduler.start()
 
 # Initialer Aufruf beim Start
+start_heat_treatment()
 scheduled_check()
+
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)

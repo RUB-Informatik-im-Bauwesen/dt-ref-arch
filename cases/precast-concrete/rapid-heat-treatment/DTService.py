@@ -167,18 +167,18 @@ def scheduled_check():
     result = check_influx_for_threshold(threshold, flux_query, influx_host)
 
     if result:        
-        update_aas_heat_output(40)              # percentage
+        update_aas_heat_output(.4)              # percentage
     else:        
-        update_aas_heat_output(100)             # percentage
+        update_aas_heat_output(.75)             # percentage
 
     current_time = datetime.now()
     end_time = START_HEAT + timedelta(hours=4)
 
     if START_HEAT <= current_time <= end_time:
-        update_aas_operating_state("heat")      # within heating period
+        update_aas_operating_state("heating")      # within heating period
     else:
         update_aas_operating_state("cooldown")  # outside heating period
-        update_aas_heat_output(0)               # percentage
+        update_aas_heat_output(.0)               # percentage
 
     status_report.update({
         "threshold": threshold,
@@ -191,8 +191,8 @@ def scheduled_check():
     print(f"[{status_report['last_check']}] Threshold={threshold} @ {influx_host} → Exceeded={result}")
 
 def start_heat_treatment():
-    update_aas_heat_output(100)
-    update_aas_operating_state("heat")
+    update_aas_heat_output(1.0)
+    update_aas_operating_state("heating")
     global START_HEAT
     START_HEAT = datetime.now()
     

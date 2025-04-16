@@ -161,7 +161,7 @@ def update_aas_operating_state(state):
     return response.status_code in (200, 204)
 
 
-def scheduled_check():
+def scheduled_check():                          #Occurs every 2 minutes
     threshold = query_temperature_threshold()
     influx_host, flux_query = query_flux_query()
     result = check_influx_for_threshold(threshold, flux_query, influx_host)
